@@ -70,7 +70,17 @@ class FaissManager:
             self.index = None
             self.metadata: List[Dict] = []
             self.index_path = index_path or str(config.FAISS_INDEX_PATH)
-            self.metadata_path = index_path or str(config.FAISS_METADATA_PATH)
+            
+            # Derive metadata_path from index_path if index_path is provided
+            if index_path:
+                index_path_obj = Path(index_path)
+                # Replace .faiss extension with .json, or append .json if no extension
+                if index_path_obj.suffix == '.faiss':
+                    self.metadata_path = str(index_path_obj.with_suffix('.json'))
+                else:
+                    self.metadata_path = str(index_path_obj.parent / f"{index_path_obj.stem}_metadata.json")
+            else:
+                self.metadata_path = str(config.FAISS_METADATA_PATH)
             
             # Ensure directory exists
             Path(self.index_path).parent.mkdir(parents=True, exist_ok=True)
