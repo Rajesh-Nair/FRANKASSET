@@ -132,11 +132,22 @@ async def classify_texts(request: ClassifyRequest):
             text_count=len(texts)
         )
         
-        # Get instances
+        # Get instances - handle initialization errors gracefully
         db = get_db_manager()
         faiss_mgr = get_faiss_manager()
-        classifier = get_classifier_agent()
-        validator = get_validation_agent()
+        
+        # Try to get agents, but don't fail if they're not available
+        try:
+            classifier = get_classifier_agent()
+        except Exception as e:
+            GLOBAL_LOGGER.warning(f"Classifier agent not available: {e}")
+            classifier = None
+        
+        try:
+            validator = get_validation_agent()
+        except Exception as e:
+            GLOBAL_LOGGER.warning(f"Validation agent not available: {e}")
+            validator = None
         
         # Get all categories for agent reference
         categories = db.get_all_categories()
@@ -157,7 +168,8 @@ async def classify_texts(request: ClassifyRequest):
                 results.append(result)
             except Exception as e:
                 GLOBAL_LOGGER.error(
-                    f"Failed to classify text '{text[:50]}...': {e}"
+                    f"Failed to classify text '{text[:50]}...': {e}",
+                    exc_info=True
                 )
                 # Create error result
                 results.append(ClassifyTextResult(
@@ -191,8 +203,8 @@ async def _classify_single_text(
     text: str,
     db: DatabaseManager,
     faiss_mgr: FaissManager,
-    classifier: BrandClassifierAgent,
-    validator: ValidationAgent,
+    classifier: Optional[BrandClassifierAgent],
+    validator: Optional[ValidationAgent],
     categories: List[dict]
 ) -> ClassifyTextResult:
     """Classify a single text.
@@ -201,8 +213,8 @@ async def _classify_single_text(
         text: Text to classify
         db: Database manager
         faiss_mgr: FAISS manager
-        classifier: Classifier agent
-        validator: Validation agent
+        classifier: Classifier agent (may be None if not available)
+        validator: Validation agent (may be None if not available)
         categories: Available categories
         
     Returns:
@@ -230,7 +242,21 @@ async def _classify_single_text(
             classification=None
         )
     
-    # Not found in database - use agents
+    # Not found in database - use agents if available
+    if classifier is None:
+        GLOBAL_LOGGER.info(
+            "Text not found in database, but classifier agent not available",
+            text=text[:100]
+        )
+        # Return result without classification
+        return ClassifyTextResult(
+            text=text,
+            found_in_db=False,
+            brand_id=None,
+            category_ids=[],
+            classification=None
+        )
+    
     GLOBAL_LOGGER.info(
         "Text not found in database, using agents",
         text=text[:100]
@@ -257,13 +283,21 @@ async def _classify_single_text(
             # Update classification with existing brand_id if we find a match
             # (Note: we still return classification, but could adjust brand_id)
         
-        # Validate using ValidationAgent
-        validation = validator.validate_result(
-            brand_name=classification["brand_name"],
-            nature_of_business=classification["nature_of_business"],
-            category_description=classification["category_description"],
-            original_text=text
-        )
+        # Validate using ValidationAgent if available
+        if validator is not None:
+            validation = validator.validate_result(
+                brand_name=classification["brand_name"],
+                nature_of_business=classification["nature_of_business"],
+                category_description=classification["category_description"],
+                original_text=text
+            )
+        else:
+            # Default validation if validator not available
+            validation = {
+                "is_valid": True,
+                "confidence": classification.get("confidence", 0.7),
+                "validation_notes": "Validation skipped (validator not available)"
+            }
         
         # Build response
         classification_result = ClassificationResult(

@@ -100,6 +100,7 @@ class TestClassifyEndpoint:
         
         assert response.status_code == 200
         data = response.json()
+        print(data)
         assert "results" in data
         assert len(data["results"]) == 2
         
