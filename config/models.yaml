@@ -1,0 +1,42 @@
+# Model Configuration
+# This file defines available LLM and embedding models for the FrankAsset backend
+
+llm_models:
+  default: "gemini-1.5-pro"
+  available:
+    - name: "gemini-1.5-pro"
+      provider: "google-vertex-ai"
+      description: "Default LLM for agents - High quality, slower"
+    - name: "gemini-1.5-flash"
+      provider: "google-vertex-ai"
+      description: "Faster LLM option - Good balance of speed and quality"
+    - name: "gemini-2.0-flash"
+      provider: "google-vertex-ai"
+      description: "Latest fast model - Fastest option"
+    - name: "gemini-pro"
+      provider: "google-vertex-ai"
+      description: "Legacy Gemini Pro model"
+
+embedding_models:
+  default: "textembedding-gecko@003"
+  available:
+    - name: "textembedding-gecko@003"
+      provider: "google-vertex-ai"
+      description: "Default embedding model - Latest version"
+      dimension: 768
+    - name: "textembedding-gecko@002"
+      provider: "google-vertex-ai"
+      description: "Alternative embedding model"
+      dimension: 768
+    - name: "textembedding-gecko-multilingual@001"
+      provider: "google-vertex-ai"
+      description: "Multilingual embedding model"
+      dimension: 768
+
+agent_assignments:
+  brand_classifier:
+    model: "gemini-1.5-pro"
+    description: "Model for BrandClassifierAgent"
+  validation:
+    model: "gemini-1.5-pro"
+    description: "Model for ValidationAgent"

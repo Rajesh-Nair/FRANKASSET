@@ -1,0 +1,32 @@
+# Application Configuration
+# This file contains tunable parameters for the FrankAsset backend
+
+faiss:
+  similarity_threshold: 0.3  # Threshold for matching similar brands (0.0 to 1.0, lower = more similar)
+  default_k: 5  # Default number of similar vectors to retrieve
+  dimension: 768  # Embedding dimension (must match embedding model)
+
+api:
+  max_texts_per_request: 100  # Maximum number of texts per classification request
+  timeout_seconds: 30  # API request timeout
+  rate_limit_per_minute: 60  # Rate limit for API requests
+
+database:
+  connection_timeout: 10  # Database connection timeout in seconds
+  max_retries: 3  # Maximum retry attempts for database operations
+  pool_size: 5  # Connection pool size (for future use)
+
+agents:
+  max_retries: 3  # Maximum retry attempts for agent operations
+  timeout_seconds: 30  # Agent operation timeout
+  web_search_max_results: 5  # Maximum results from web search tool
+  confidence_threshold: 0.6  # Minimum confidence score for accepting classification
+
+logging:
+  level: "INFO"  # Logging level: DEBUG, INFO, WARNING, ERROR
+  format: "json"  # Log format: json or text
+  file_rotation: true  # Enable log file rotation
+
+security:
+  max_text_length: 10000  # Maximum length for input text
+  sanitize_input: true  # Enable input sanitization
