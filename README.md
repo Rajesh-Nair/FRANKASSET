@@ -452,6 +452,83 @@ LOG_DIR=logs
 
 ### Installation Steps
 
+#### Using UV (Recommended)
+
+UV is a fast Python package manager that's 10-100× faster than pip. It's the recommended installation method.
+
+1. **Install UV:**
+   ```bash
+   # macOS and Linux
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # Windows
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+   
+   # Or via pip
+   pip install uv
+   ```
+
+2. **Clone the repository** (if applicable)
+
+3. **Create virtual environment with UV:**
+   ```bash
+   uv venv
+   ```
+
+4. **Activate virtual environment:**
+   ```bash
+   # Linux/Mac
+   source .venv/bin/activate
+   
+   # Windows
+   .venv\Scripts\activate
+   ```
+
+5. **Install dependencies:**
+   ```bash
+   # Install from pyproject.toml (recommended)
+   uv pip install -e .
+   
+   # Or install from requirements.txt
+   uv pip install -r requirements.txt
+   
+   # Or use uv sync (if using uv.lock file)
+   # uv sync
+   ```
+
+6. **Set up Google Cloud credentials:**
+   ```bash
+   gcloud auth application-default login
+   ```
+
+7. **Configure environment variables** (see above)
+
+8. **Initialize database and categories:**
+   ```python
+   # Database will be created automatically on first run
+   # Add initial categories if needed
+   ```
+
+9. **Run the application:**
+   ```bash
+   # Using uv run (recommended)
+   uv run python main.py
+   
+   # Or using uvicorn directly with uv
+   uv run uvicorn main:app --reload
+   
+   # Or using python directly (if venv is activated)
+   python main.py
+   ```
+
+10. **Access API documentation:**
+    - Swagger UI: http://localhost:8000/docs
+    - ReDoc: http://localhost:8000/redoc
+
+#### Using Pip (Alternative)
+
+For backward compatibility, you can also use pip and venv:
+
 1. **Clone the repository** (if applicable)
 
 2. **Create virtual environment:**
@@ -462,7 +539,11 @@ LOG_DIR=logs
 
 3. **Install dependencies:**
    ```bash
+   # Install from pyproject.toml
    pip install -e .
+   
+   # Or install from requirements.txt
+   pip install -r requirements.txt
    ```
 
 4. **Set up Google Cloud credentials:**
@@ -472,20 +553,83 @@ LOG_DIR=logs
 
 5. **Configure environment variables** (see above)
 
-6. **Initialize database and categories:**
-   ```python
-   # Database will be created automatically on first run
-   # Add initial categories if needed
-   ```
-
-7. **Run the application:**
+6. **Run the application:**
    ```bash
    python main.py
    ```
 
-8. **Access API documentation:**
-   - Swagger UI: http://localhost:8000/docs
-   - ReDoc: http://localhost:8000/redoc
+7. **Access API documentation:**
+    - Swagger UI: http://localhost:8000/docs
+    - ReDoc: http://localhost:8000/redoc
+
+### Running the Uvicorn Server
+
+The application uses uvicorn as the ASGI server. There are several ways to run it:
+
+#### Using `python main.py` (Default)
+
+This is the simplest method and uses the configuration in `main.py`:
+
+```bash
+python main.py
+```
+
+This runs with:
+- Host: `0.0.0.0`
+- Port: `8000`
+- Auto-reload: `True` (development mode)
+- Log level: `info`
+
+#### Using `uvicorn` directly
+
+You can run uvicorn directly for more control:
+
+```bash
+# Basic usage
+uvicorn main:app --reload
+
+# Specify host and port
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+# Production mode (no reload)
+uvicorn main:app --host 0.0.0.0 --port 8000
+
+# Custom log level
+uvicorn main:app --log-level debug --reload
+```
+
+#### Using `uv run uvicorn` (Recommended with UV)
+
+When using UV, you can use `uv run` to automatically use the virtual environment:
+
+```bash
+# With auto-reload (development)
+uv run uvicorn main:app --reload
+
+# Production mode
+uv run uvicorn main:app --host 0.0.0.0 --port 8000
+
+# With custom configuration
+uv run uvicorn main:app --host 0.0.0.0 --port 8000 --log-level info
+```
+
+#### Uvicorn Command-Line Options
+
+Common uvicorn options:
+
+- `--reload` - Enable auto-reload on code changes (development only)
+- `--host` - Bind to specific host (default: `127.0.0.1`)
+- `--port` - Bind to specific port (default: `8000`)
+- `--log-level` - Set log level (`critical`, `error`, `warning`, `info`, `debug`, `trace`)
+- `--workers` - Number of worker processes (production only)
+- `--ssl-keyfile` - SSL key file (HTTPS)
+- `--ssl-certfile` - SSL certificate file (HTTPS)
+
+Example production command:
+
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+```
 
 ## API Documentation
 

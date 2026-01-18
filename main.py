@@ -240,7 +240,17 @@ if __name__ == "__main__":
     """Run the FastAPI application using uvicorn.
     
     Usage:
+        # Using Python directly (if venv is activated)
         python main.py
+        
+        # Using uv run (recommended with UV)
+        uv run python main.py
+        
+        # Or run uvicorn directly
+        uvicorn main:app --reload
+        
+        # Or using uv run with uvicorn
+        uv run uvicorn main:app --reload
     """
     GLOBAL_LOGGER.info("Starting FastAPI server...")
     
