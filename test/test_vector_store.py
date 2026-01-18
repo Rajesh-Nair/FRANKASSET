@@ -118,6 +118,8 @@ class TestFaissManager:
             {"brand_id": 2, "brand_name": "MCDONALDS"}
         ]
         manager1.add_embeddings(embeddings, metadata)
+        assert manager1.get_index_size() == 2
+        assert len(manager1.metadata) == 2
         manager1.save_index()
         
         # Create new manager and load
