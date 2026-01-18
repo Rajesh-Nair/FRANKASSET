@@ -66,6 +66,11 @@ class DatabaseManager:
         except Exception as e:
             raise CustomException(f"Failed to connect to database: {e}")
     
+    def _reconnect(self):
+        """Reconnect to the database if connection is closed."""
+        if self.conn is None:
+            self._connect()
+    
     def _create_tables(self):
         """Create database tables if they don't exist."""
         try:
@@ -408,6 +413,7 @@ class DatabaseManager:
         """Close database connection."""
         if self.conn:
             self.conn.close()
+            self.conn = None  # Set to None after closing
             GLOBAL_LOGGER.info("Database connection closed")
     
     def __enter__(self):

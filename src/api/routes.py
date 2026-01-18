@@ -32,6 +32,7 @@ from src.vector_store.faiss_manager import FaissManager
 from src.agents.brand_classifier_agent import BrandClassifierAgent
 from src.agents.validation_agent import ValidationAgent
 from utils.helpers import sanitize_input
+from utils.config import config
 
 # Initialize router
 router = APIRouter(prefix="/api/v1", tags=["classification"])
@@ -52,6 +53,9 @@ def get_db_manager() -> DatabaseManager:
     global db_manager
     if db_manager is None:
         db_manager = DatabaseManager()
+    elif db_manager.conn is None:
+        # Connection was closed, reconnect
+        db_manager._reconnect()
     return db_manager
 
 
