@@ -13,9 +13,11 @@ from pathlib import Path as PathLib
 # Add parent directory to path for imports
 sys.path.insert(0, str(PathLib(__file__).resolve().parent.parent.parent))
 
-from logger import GLOBAL_LOGGER
+from logger.custom_logger import CustomLogger
 from exception.custom_exception import CustomException
 from utils.config import config
+
+logger = CustomLogger().get_logger(__file__)
 
 try:
     from google.adk.agents import Agent
@@ -88,7 +90,7 @@ Return your response as a JSON object with the following structure:
                 except:
                     pass  # May use Vertex AI instead
             
-            GLOBAL_LOGGER.info("ValidationAgent initialized", model=model_name)
+            logger.info("ValidationAgent initialized", model=model_name)
         except Exception as e:
             raise CustomException(f"Failed to initialize ValidationAgent: {e}")
     
@@ -138,7 +140,7 @@ Return your response as a JSON object with:
 - validation_notes: Brief explanation of your validation decision
 """
             
-            GLOBAL_LOGGER.info(
+            logger.info(
                 "Validating classification result",
                 brand_name=brand_name,
                 category=category_description
@@ -151,7 +153,7 @@ Return your response as a JSON object with:
                 # Parse response
                 result = self._parse_response(response)
                 
-                GLOBAL_LOGGER.info(
+                logger.info(
                     "Classification validated",
                     brand_name=brand_name,
                     is_valid=result.get("is_valid"),
@@ -160,7 +162,7 @@ Return your response as a JSON object with:
                 
                 return result
             except Exception as e:
-                GLOBAL_LOGGER.error(f"Agent query failed: {e}")
+                logger.error("Agent query failed", error=str(e))
                 raise CustomException(f"Failed to validate result: {e}")
         except CustomException:
             raise
@@ -247,7 +249,7 @@ Return your response as a JSON object with:
             
             return result
         except json.JSONDecodeError as e:
-            GLOBAL_LOGGER.warning(f"Failed to parse JSON from response: {response[:200]}")
+            logger.warning("Failed to parse JSON from response", response_preview=response[:200])
             raise CustomException(f"Failed to parse agent response as JSON: {e}")
         except Exception as e:
             raise CustomException(f"Failed to parse agent response: {e}")
@@ -255,11 +257,11 @@ Return your response as a JSON object with:
 
 if __name__ == "__main__":
     """Test ValidationAgent."""
-    print("Testing ValidationAgent...")
+    logger.info("Testing ValidationAgent...")
     
     try:
         agent = ValidationAgent()
-        print("ValidationAgent initialized successfully")
+        logger.info("ValidationAgent initialized successfully")
         
         # Test validation
         test_result = agent.validate_result(
@@ -269,15 +271,17 @@ if __name__ == "__main__":
             original_text="Shopping at AMAZON"
         )
         
-        print(f"\nValidation result:")
-        print(f"  Is Valid: {test_result.get('is_valid')}")
-        print(f"  Confidence: {test_result.get('confidence')}")
-        print(f"  Notes: {test_result.get('validation_notes')}")
+        logger.info(
+            "Validation result",
+            is_valid=test_result.get('is_valid'),
+            confidence=test_result.get('confidence'),
+            notes=test_result.get('validation_notes')
+        )
         
-        print("\nValidationAgent test passed!")
+        logger.info("ValidationAgent test passed")
     except CustomException as e:
-        print(f"ValidationAgent test skipped: {e}")
+        logger.warning("ValidationAgent test skipped", error=str(e))
     except Exception as e:
-        print(f"ValidationAgent test failed: {e}")
+        logger.error("ValidationAgent test failed", error=str(e))
         import traceback
         traceback.print_exc()

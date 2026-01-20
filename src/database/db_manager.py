@@ -15,9 +15,11 @@ from pathlib import Path as PathLib
 # Add parent directory to path for imports
 sys.path.insert(0, str(PathLib(__file__).resolve().parent.parent.parent))
 
-from logger import GLOBAL_LOGGER
+from logger.custom_logger import CustomLogger
 from exception.custom_exception import CustomException
 from utils.config import config
+
+logger = CustomLogger().get_logger(__file__)
 
 
 class DatabaseManager:
@@ -46,7 +48,7 @@ class DatabaseManager:
             self.conn = None
             self._connect()
             self._create_tables()
-            GLOBAL_LOGGER.info(
+            logger.info(
                 "Database manager initialized",
                 db_path=self.db_path
             )
@@ -62,7 +64,7 @@ class DatabaseManager:
             
             self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
             self.conn.row_factory = sqlite3.Row  # Enable column access by name
-            GLOBAL_LOGGER.info("Database connection established", db_path=self.db_path)
+            logger.info("Database connection established", db_path=self.db_path)
         except Exception as e:
             raise CustomException(f"Failed to connect to database: {e}")
     
@@ -123,7 +125,7 @@ class DatabaseManager:
             """)
             
             self.conn.commit()
-            GLOBAL_LOGGER.info("Database tables created/verified")
+            logger.info("Database tables created/verified")
         except Exception as e:
             self.conn.rollback()
             raise CustomException(f"Failed to create database tables: {e}")
@@ -150,13 +152,13 @@ class DatabaseManager:
             brand_id = row["brand_id"] if row else None
             
             if brand_id:
-                GLOBAL_LOGGER.info(
+                logger.info(
                     "Merchant text found in database",
                     text=text,
                     brand_id=brand_id
                 )
             else:
-                GLOBAL_LOGGER.debug("Merchant text not found in database", text=text)
+                logger.debug("Merchant text not found in database", text=text)
             
             return brand_id
         except Exception as e:
@@ -240,7 +242,7 @@ class DatabaseManager:
                 (text, brand_id)
             )
             self.conn.commit()
-            GLOBAL_LOGGER.info(
+            logger.info(
                 "Merchant mapping inserted",
                 text=text,
                 brand_id=brand_id
@@ -278,7 +280,7 @@ class DatabaseManager:
             self.conn.commit()
             brand_id = cursor.lastrowid
             
-            GLOBAL_LOGGER.info(
+            logger.info(
                 "Brand inserted",
                 brand_id=brand_id,
                 brand_name=name,
@@ -386,7 +388,7 @@ class DatabaseManager:
             self.conn.commit()
             category_id = cursor.lastrowid
             
-            GLOBAL_LOGGER.info(
+            logger.info(
                 "Category inserted",
                 category_id=category_id,
                 description=description
@@ -414,7 +416,7 @@ class DatabaseManager:
         if self.conn:
             self.conn.close()
             self.conn = None  # Set to None after closing
-            GLOBAL_LOGGER.info("Database connection closed")
+            logger.info("Database connection closed")
     
     def __enter__(self):
         """Context manager entry."""
@@ -440,36 +442,36 @@ if __name__ == "__main__":
         
         # Test category insertion
         cat_id = db.insert_category("Retail Shopping")
-        print(f"Inserted category ID: {cat_id}")
+        logger.info("Inserted category", category_id=cat_id)
         
         # Test brand insertion
         brand_id = db.insert_brand("AMAZON", "E-commerce", cat_id)
-        print(f"Inserted brand ID: {brand_id}")
+        logger.info("Inserted brand", brand_id=brand_id)
         
         # Test merchant mapping
         db.insert_merchant_mapping("Shopping at AMAZON", brand_id)
-        print("Inserted merchant mapping")
+        logger.info("Inserted merchant mapping")
         
         # Test search
         found_brand_id = db.search_merchant_text("Shopping at AMAZON")
-        print(f"Found brand ID for 'Shopping at AMAZON': {found_brand_id}")
+        logger.info("Found brand ID for merchant text", merchant_text="Shopping at AMAZON", brand_id=found_brand_id)
         
         # Test get brand details
         brand_details = db.get_brand_details(brand_id)
-        print(f"Brand details: {brand_details}")
+        logger.info("Retrieved brand details", brand_details=brand_details)
         
         # Test get categories
         categories = db.get_all_categories()
-        print(f"All categories: {categories}")
+        logger.info("Retrieved all categories", categories_count=len(categories))
         
         # Test search brand by name
         found_brand = db.search_brand_by_name("AMAZON")
-        print(f"Found brand ID for 'AMAZON': {found_brand}")
+        logger.info("Found brand ID by name", brand_name="AMAZON", brand_id=found_brand)
         
         db.close()
-        print("\nAll database tests passed!")
+        logger.info("All database tests passed")
     except Exception as e:
-        print(f"Database test failed: {e}")
+        logger.error("Database test failed", error=str(e))
         import traceback
         traceback.print_exc()
     finally:

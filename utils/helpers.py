@@ -6,6 +6,9 @@ embedding utilities, and data transformation helpers.
 
 import re
 from typing import List, Optional
+from logger.custom_logger import CustomLogger
+
+logger = CustomLogger().get_logger(__file__)
 
 
 def preprocess_text(text: str) -> str:
@@ -163,26 +166,21 @@ if __name__ == "__main__":
     """Test helper functions."""
     # Test preprocess_text
     test_text = "  Shopping   at   AMAZON   "
-    print(f"Original: '{test_text}'")
-    print(f"Preprocessed: '{preprocess_text(test_text)}'")
+    logger.info("Testing preprocess_text", original=test_text, preprocessed=preprocess_text(test_text))
     
     # Test extract_merchant_name
     test_transaction = "Shopping at AMAZON Marketplace"
-    print(f"\nTransaction: '{test_transaction}'")
-    print(f"Extracted merchant: '{extract_merchant_name(test_transaction)}'")
+    logger.info("Testing extract_merchant_name", transaction=test_transaction, extracted=extract_merchant_name(test_transaction))
     
     # Test normalize_brand_name
     test_brand = "Amazon.com Inc."
-    print(f"\nOriginal brand: '{test_brand}'")
-    print(f"Normalized: '{normalize_brand_name(test_brand)}'")
+    logger.info("Testing normalize_brand_name", original=test_brand, normalized=normalize_brand_name(test_brand))
     
     # Test chunk_text
     long_text = " ".join(["word"] * 200)
     chunks = chunk_text(long_text, max_length=100)
-    print(f"\nLong text chunks: {len(chunks)} chunks")
-    print(f"First chunk length: {len(chunks[0])}")
+    logger.info("Testing chunk_text", chunks_count=len(chunks), first_chunk_length=len(chunks[0]))
     
     # Test sanitize_input
     unsafe_input = "Normal text\x00with\x01control\x02chars"
-    print(f"\nUnsafe input: {repr(unsafe_input)}")
-    print(f"Sanitized: {repr(sanitize_input(unsafe_input))}")
+    logger.info("Testing sanitize_input", unsafe_input=repr(unsafe_input), sanitized=repr(sanitize_input(unsafe_input)))

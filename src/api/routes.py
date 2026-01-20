@@ -13,8 +13,10 @@ from pathlib import Path as PathLib
 # Add parent directory to path for imports
 sys.path.insert(0, str(PathLib(__file__).resolve().parent.parent.parent))
 
-from logger import GLOBAL_LOGGER
+from logger.custom_logger import CustomLogger
 from exception.custom_exception import CustomException
+
+logger = CustomLogger().get_logger(__file__)
 from src.api.schemas import (
     ClassifyRequest,
     ClassifyResponse,
@@ -127,7 +129,7 @@ async def classify_texts(request: ClassifyRequest):
         # Sanitize inputs
         texts = [sanitize_input(text) for text in texts]
         
-        GLOBAL_LOGGER.info(
+        logger.info(
             "Classification request received",
             text_count=len(texts)
         )
@@ -140,13 +142,13 @@ async def classify_texts(request: ClassifyRequest):
         try:
             classifier = get_classifier_agent()
         except Exception as e:
-            GLOBAL_LOGGER.warning(f"Classifier agent not available: {e}")
+            logger.warning("Classifier agent not available", error=str(e))
             classifier = None
         
         try:
             validator = get_validation_agent()
         except Exception as e:
-            GLOBAL_LOGGER.warning(f"Validation agent not available: {e}")
+            logger.warning("Validation agent not available", error=str(e))
             validator = None
         
         # Get all categories for agent reference
@@ -167,8 +169,10 @@ async def classify_texts(request: ClassifyRequest):
                 )
                 results.append(result)
             except Exception as e:
-                GLOBAL_LOGGER.error(
-                    f"Failed to classify text '{text[:50]}...': {e}",
+                logger.error(
+                    "Failed to classify text",
+                    text_preview=text[:50],
+                    error=str(e),
                     exc_info=True
                 )
                 # Create error result
@@ -180,7 +184,7 @@ async def classify_texts(request: ClassifyRequest):
                     classification=None
                 ))
         
-        GLOBAL_LOGGER.info(
+        logger.info(
             "Classification completed",
             total_texts=len(texts),
             found_in_db=sum(1 for r in results if r.found_in_db),
@@ -192,7 +196,7 @@ async def classify_texts(request: ClassifyRequest):
     except HTTPException:
         raise
     except Exception as e:
-        GLOBAL_LOGGER.error(f"Classification request failed: {e}")
+        logger.error("Classification request failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Classification failed: {str(e)}"
@@ -227,7 +231,7 @@ async def _classify_single_text(
         # Found in database
         category_ids = db.get_category_ids_by_brand(brand_id)
         
-        GLOBAL_LOGGER.info(
+        logger.info(
             "Text found in database",
             text=text[:100],
             brand_id=brand_id,
@@ -244,7 +248,7 @@ async def _classify_single_text(
     
     # Not found in database - use agents if available
     if classifier is None:
-        GLOBAL_LOGGER.info(
+        logger.info(
             "Text not found in database, but classifier agent not available",
             text=text[:100]
         )
@@ -257,7 +261,7 @@ async def _classify_single_text(
             classification=None
         )
     
-    GLOBAL_LOGGER.info(
+    logger.info(
         "Text not found in database, using agents",
         text=text[:100]
     )
@@ -274,7 +278,7 @@ async def _classify_single_text(
         similarity_threshold = config.get_faiss_similarity_threshold()
         if similar_brands and similar_brands[0]["distance"] < similarity_threshold:
             similar_brand_id = similar_brands[0]["brand_id"]
-            GLOBAL_LOGGER.info(
+            logger.info(
                 "Similar brand found in FAISS",
                 brand_name=classification["brand_name"],
                 similar_brand_id=similar_brand_id,
@@ -323,7 +327,7 @@ async def _classify_single_text(
             validation=validation_result
         )
         
-        GLOBAL_LOGGER.info(
+        logger.info(
             "Text classified successfully",
             text=text[:100],
             brand_name=classification["brand_name"],
@@ -340,7 +344,7 @@ async def _classify_single_text(
         )
     
     except Exception as e:
-        GLOBAL_LOGGER.error(f"Agent classification failed for text '{text[:50]}...': {e}")
+        logger.error("Agent classification failed", text_preview=text[:50], error=str(e))
         raise CustomException(f"Failed to classify text: {e}")
 
 
@@ -368,7 +372,7 @@ async def approve_classifications(request: ApproveRequest):
                 detail="No approvals provided"
             )
         
-        GLOBAL_LOGGER.info(
+        logger.info(
             "Approval request received",
             approval_count=len(request.approvals)
         )
@@ -389,8 +393,10 @@ async def approve_classifications(request: ApproveRequest):
                 )
                 results.append(result)
             except Exception as e:
-                GLOBAL_LOGGER.error(
-                    f"Failed to process approval for '{approval.text[:50]}...': {e}"
+                logger.error(
+                    "Failed to process approval",
+                    text_preview=approval.text[:50],
+                    error=str(e)
                 )
                 results.append(ApprovalResult(
                     text=approval.text,
@@ -399,7 +405,7 @@ async def approve_classifications(request: ApproveRequest):
                     message=f"Failed to process: {str(e)}"
                 ))
         
-        GLOBAL_LOGGER.info(
+        logger.info(
             "Approval processing completed",
             total_items=len(request.approvals),
             approved=sum(1 for r in results if r.status == "approved"),
@@ -411,7 +417,7 @@ async def approve_classifications(request: ApproveRequest):
     except HTTPException:
         raise
     except Exception as e:
-        GLOBAL_LOGGER.error(f"Approval request failed: {e}")
+        logger.error("Approval request failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Approval processing failed: {str(e)}"
@@ -435,7 +441,7 @@ async def _process_approval(
     """
     if not approval.approved:
         # Rejected - just log
-        GLOBAL_LOGGER.info(
+        logger.info(
             "Classification rejected",
             text=approval.text[:100]
         )
@@ -469,7 +475,7 @@ async def _process_approval(
             if similar_brands and similar_brands[0]["distance"] < similarity_threshold:
                 # Use existing similar brand
                 brand_id = similar_brands[0]["brand_id"]
-                GLOBAL_LOGGER.info(
+                logger.info(
                     "Using similar brand from FAISS",
                     brand_name=brand_name,
                     existing_brand_id=brand_id,
@@ -491,7 +497,7 @@ async def _process_approval(
                 )
                 faiss_mgr.save_index()
                 
-                GLOBAL_LOGGER.info(
+                logger.info(
                     "New brand inserted",
                     brand_id=brand_id,
                     brand_name=brand_name,
@@ -501,7 +507,7 @@ async def _process_approval(
         # Insert merchant mapping into m2b
         db.insert_merchant_mapping(text=text, brand_id=brand_id)
         
-        GLOBAL_LOGGER.info(
+        logger.info(
             "Approval processed successfully",
             text=text[:100],
             brand_id=brand_id,

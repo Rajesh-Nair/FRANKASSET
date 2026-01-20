@@ -13,9 +13,11 @@ from pathlib import Path as PathLib
 # Add parent directory to path for imports
 sys.path.insert(0, str(PathLib(__file__).resolve().parent.parent.parent))
 
-from logger import GLOBAL_LOGGER
+from logger.custom_logger import CustomLogger
 from exception.custom_exception import CustomException
 from utils.config import config
+
+logger = CustomLogger().get_logger(__file__)
 
 try:
     from google.adk.agents import Agent
@@ -73,7 +75,7 @@ def google_search_tool(query: str) -> Dict:
                     "link": item.get("link", "")
                 })
         
-        GLOBAL_LOGGER.info(
+        logger.info(
             "Google search executed",
             query=query,
             results_count=len(results)
@@ -156,7 +158,7 @@ Return your response as a JSON object with the following structure:
                 except:
                     pass  # May use Vertex AI instead
             
-            GLOBAL_LOGGER.info("BrandClassifierAgent initialized", model=model_name)
+            logger.info("BrandClassifierAgent initialized", model=model_name)
         except Exception as e:
             raise CustomException(f"Failed to initialize BrandClassifierAgent: {e}")
     
@@ -204,7 +206,7 @@ Return your response as a JSON object with:
 - confidence: Your confidence score (0.0 to 1.0)
 """
             
-            GLOBAL_LOGGER.info(
+            logger.info(
                 "Classifying merchant",
                 text=text[:100],  # Log first 100 chars
                 categories_count=len(available_categories)
@@ -220,7 +222,7 @@ Return your response as a JSON object with:
                 # Parse response
                 result = self._parse_response(response)
                 
-                GLOBAL_LOGGER.info(
+                logger.info(
                     "Merchant classified",
                     text=text[:100],
                     brand_name=result.get("brand_name"),
@@ -230,7 +232,7 @@ Return your response as a JSON object with:
                 
                 return result
             except Exception as e:
-                GLOBAL_LOGGER.error(f"Agent query failed: {e}")
+                logger.error("Agent query failed", error=str(e))
                 raise CustomException(f"Failed to classify merchant: {e}")
         except CustomException:
             raise
@@ -318,7 +320,7 @@ Return your response as a JSON object with:
             
             return result
         except json.JSONDecodeError as e:
-            GLOBAL_LOGGER.warning(f"Failed to parse JSON from response: {response[:200]}")
+            logger.warning("Failed to parse JSON from response", response_preview=response[:200])
             raise CustomException(f"Failed to parse agent response as JSON: {e}")
         except Exception as e:
             raise CustomException(f"Failed to parse agent response: {e}")
@@ -326,7 +328,7 @@ Return your response as a JSON object with:
 
 if __name__ == "__main__":
     """Test BrandClassifierAgent."""
-    print("Testing BrandClassifierAgent...")
+    logger.info("Testing BrandClassifierAgent...")
     
     # Mock categories for testing
     test_categories = [
@@ -338,24 +340,26 @@ if __name__ == "__main__":
     
     try:
         agent = BrandClassifierAgent()
-        print("BrandClassifierAgent initialized successfully")
+        logger.info("BrandClassifierAgent initialized successfully")
         
         # Test classification (will fail if ADK not configured)
         test_text = "Shopping at AMAZON"
-        print(f"\nClassifying: '{test_text}'")
+        logger.info("Classifying merchant text", text=test_text)
         
         result = agent.classify_merchant(test_text, test_categories)
-        print(f"Classification result:")
-        print(f"  Brand Name: {result.get('brand_name')}")
-        print(f"  Nature of Business: {result.get('nature_of_business')}")
-        print(f"  Category: {result.get('category_description')}")
-        print(f"  Category ID: {result.get('category_id')}")
-        print(f"  Confidence: {result.get('confidence')}")
+        logger.info(
+            "Classification result",
+            brand_name=result.get('brand_name'),
+            nature_of_business=result.get('nature_of_business'),
+            category=result.get('category_description'),
+            category_id=result.get('category_id'),
+            confidence=result.get('confidence')
+        )
         
-        print("\nBrandClassifierAgent test passed!")
+        logger.info("BrandClassifierAgent test passed")
     except CustomException as e:
-        print(f"BrandClassifierAgent test skipped: {e}")
+        logger.warning("BrandClassifierAgent test skipped", error=str(e))
     except Exception as e:
-        print(f"BrandClassifierAgent test failed: {e}")
+        logger.error("BrandClassifierAgent test failed", error=str(e))
         import traceback
         traceback.print_exc()

@@ -14,6 +14,10 @@ from pathlib import Path as PathLib
 # Add parent directory to path for imports
 sys.path.insert(0, str(PathLib(__file__).resolve().parent.parent))
 
+from logger.custom_logger import CustomLogger
+
+logger = CustomLogger().get_logger(__file__)
+
 
 @pytest.fixture
 def temp_db():
@@ -100,7 +104,7 @@ class TestClassifyEndpoint:
         
         assert response.status_code == 200
         data = response.json()
-        print(data)
+        logger.debug("Test response data", data=data)
         assert "results" in data
         assert len(data["results"]) == 2
         

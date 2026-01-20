@@ -21,9 +21,11 @@ from pathlib import Path as PathLib
 # Add parent directory to path for imports
 sys.path.insert(0, str(PathLib(__file__).resolve().parent.parent.parent))
 
-from logger import GLOBAL_LOGGER
+from logger.custom_logger import CustomLogger
 from exception.custom_exception import CustomException
 from utils.config import config
+
+logger = CustomLogger().get_logger(__file__)
 
 try:
     from google.cloud import aiplatform
@@ -91,7 +93,7 @@ class FaissManager:
             # Load existing index if available
             self._load_index()
             
-            GLOBAL_LOGGER.info(
+            logger.info(
                 "FAISS manager initialized",
                 dimension=self.dimension,
                 index_size=len(self.metadata) if self.index else 0
@@ -116,18 +118,18 @@ class FaissManager:
                 self.embedding_model = TextEmbeddingModel.from_pretrained(
                     config.EMBEDDING_MODEL
                 )
-                GLOBAL_LOGGER.info(
+                logger.info(
                     "Vertex AI initialized",
                     project=config.GOOGLE_CLOUD_PROJECT,
                     model=config.EMBEDDING_MODEL
                 )
             else:
                 self.embedding_model = None
-                GLOBAL_LOGGER.warning(
+                logger.warning(
                     "Vertex AI not initialized - GOOGLE_CLOUD_PROJECT not set"
                 )
         except Exception as e:
-            GLOBAL_LOGGER.warning(f"Vertex AI initialization failed: {e}")
+            logger.warning("Vertex AI initialization failed", error=str(e))
             self.embedding_model = None
     
     def _load_index(self):
@@ -144,7 +146,7 @@ class FaissManager:
                 with open(metadata_file, 'r', encoding='utf-8') as f:
                     self.metadata = json.load(f)
                 
-                GLOBAL_LOGGER.info(
+                logger.info(
                     "FAISS index loaded from disk",
                     index_size=len(self.metadata)
                 )
@@ -152,9 +154,9 @@ class FaissManager:
                 # Create new empty index
                 self.index = faiss.IndexFlatL2(self.dimension)
                 self.metadata = []
-                GLOBAL_LOGGER.info("Created new FAISS index")
+                logger.info("Created new FAISS index")
         except Exception as e:
-            GLOBAL_LOGGER.warning(f"Failed to load FAISS index: {e}")
+            logger.warning("Failed to load FAISS index", error=str(e))
             self.index = faiss.IndexFlatL2(self.dimension)
             self.metadata = []
     
@@ -187,7 +189,7 @@ class FaissManager:
             # Reshape to 2D (1, dimension)
             embedding = embedding.reshape(1, -1)
             
-            GLOBAL_LOGGER.debug("Generated embedding", text_length=len(text))
+            logger.debug("Generated embedding", text_length=len(text))
             
             return embedding[0]  # Return 1D array
         except Exception as e:
@@ -225,7 +227,7 @@ class FaissManager:
             # Add metadata
             self.metadata.extend(metadata_list)
             
-            GLOBAL_LOGGER.info(
+            logger.info(
                 "Embeddings added to FAISS index",
                 count=len(metadata_list),
                 total_size=len(self.metadata)
@@ -274,7 +276,7 @@ class FaissManager:
                     }
                     results.append(result)
             
-            GLOBAL_LOGGER.debug(
+            logger.debug(
                 "FAISS similarity search completed",
                 k=k,
                 results_count=len(results)
@@ -315,7 +317,7 @@ class FaissManager:
             ]
             
             if not new_brands:
-                GLOBAL_LOGGER.info("FAISS index is already in sync with database")
+                logger.info("FAISS index is already in sync with database")
                 return
             
             # Generate embeddings for new brands
@@ -331,8 +333,10 @@ class FaissManager:
                         "brand_name": brand["brand_name"]
                     })
                 except Exception as e:
-                    GLOBAL_LOGGER.warning(
-                        f"Failed to generate embedding for brand {brand['brand_id']}: {e}"
+                    logger.warning(
+                        "Failed to generate embedding for brand",
+                        brand_id=brand['brand_id'],
+                        error=str(e)
                     )
             
             # Add to index
@@ -343,7 +347,7 @@ class FaissManager:
                 # Save index
                 self.save_index()
             
-            GLOBAL_LOGGER.info(
+            logger.info(
                 "FAISS index synced with database",
                 new_brands_added=len(metadata_list)
             )
@@ -367,7 +371,7 @@ class FaissManager:
             with open(self.metadata_path, 'w', encoding='utf-8') as f:
                 json.dump(self.metadata, f, indent=2)
             
-            GLOBAL_LOGGER.info(
+            logger.info(
                 "FAISS index saved to disk",
                 index_path=self.index_path,
                 metadata_path=self.metadata_path
@@ -392,10 +396,10 @@ if __name__ == "__main__":
     
     # Skip test if FAISS or Vertex AI not available
     if faiss is None:
-        print("FAISS not installed - skipping test")
+        logger.warning("FAISS not installed - skipping test")
     elif TextEmbeddingModel is None or not config.GOOGLE_CLOUD_PROJECT:
-        print("Vertex AI not configured - skipping embedding generation test")
-        print("Testing FAISS index operations only...")
+        logger.warning("Vertex AI not configured - skipping embedding generation test")
+        logger.info("Testing FAISS index operations only...")
         
         # Create temporary index path
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -405,7 +409,7 @@ if __name__ == "__main__":
             try:
                 # Create FAISS manager (without embeddings)
                 manager = FaissManager(dimension=768)
-                print(f"FAISS manager initialized: {manager.get_index_size()} vectors")
+                logger.info("FAISS manager initialized", index_size=manager.get_index_size())
                 
                 # Create dummy embeddings
                 dummy_embeddings = np.random.rand(3, 768).astype(np.float32)
@@ -417,45 +421,45 @@ if __name__ == "__main__":
                 
                 # Add embeddings
                 manager.add_embeddings(dummy_embeddings, dummy_metadata)
-                print(f"Added embeddings: {manager.get_index_size()} vectors")
+                logger.info("Added embeddings", index_size=manager.get_index_size())
                 
                 # Search similar
                 query_embedding = dummy_embeddings[0]
                 results = manager.search_similar(query_embedding, k=2)
-                print(f"Search results: {len(results)} similar vectors found")
+                logger.info("Search results", results_count=len(results))
                 for result in results:
-                    print(f"  Brand ID: {result['brand_id']}, Distance: {result['distance']:.4f}")
+                    logger.info("Search result", brand_id=result['brand_id'], distance=result['distance'])
                 
                 # Save and reload
                 manager.save_index()
-                print("Index saved successfully")
+                logger.info("Index saved successfully")
                 
-                print("\nFAISS manager test passed!")
+                logger.info("FAISS manager test passed")
             except Exception as e:
-                print(f"FAISS test failed: {e}")
+                logger.error("FAISS test failed", error=str(e))
                 import traceback
                 traceback.print_exc()
     else:
-        print("Running full FAISS manager test with Vertex AI...")
+        logger.info("Running full FAISS manager test with Vertex AI...")
         try:
             manager = FaissManager()
             
             # Test embedding generation
             test_text = "AMAZON"
             embedding = manager.get_embedding(test_text)
-            print(f"Generated embedding shape: {embedding.shape}")
+            logger.info("Generated embedding", shape=embedding.shape)
             
             # Add embedding
             metadata = [{"brand_id": 1, "brand_name": test_text}]
             manager.add_embeddings(embedding.reshape(1, -1), metadata)
-            print(f"Added embedding: {manager.get_index_size()} vectors")
+            logger.info("Added embedding", index_size=manager.get_index_size())
             
             # Search
             results = manager.search_similar(embedding, k=1)
-            print(f"Search results: {len(results)}")
+            logger.info("Search results", results_count=len(results))
             
-            print("\nFAISS manager test passed!")
+            logger.info("FAISS manager test passed")
         except Exception as e:
-            print(f"FAISS test failed: {e}")
+            logger.error("FAISS test failed", error=str(e))
             import traceback
             traceback.print_exc()

@@ -7,6 +7,6 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 project = os.path.basename(BASE_DIR)
 
-# Create a single shared logger instance
-GLOBAL_LOGGER = CustomLogger().get_logger(project)
-print(f"Logger initialized for project: {project}")
+# Create a logger instance for this module
+logger = CustomLogger().get_logger(__file__)
+logger.info("Logger module initialized", project=project)

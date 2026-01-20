@@ -8,6 +8,9 @@ import os
 from pathlib import Path
 from typing import Optional, Dict, Any
 import yaml
+from logger.custom_logger import CustomLogger
+
+logger = CustomLogger().get_logger(__file__)
 
 
 class Config:
@@ -84,10 +87,10 @@ class Config:
                 with open(models_path, 'r', encoding='utf-8') as f:
                     self._models_config = yaml.safe_load(f) or {}
             except Exception as e:
-                print(f"Warning: Failed to load models.yaml: {e}")
+                logger.warning("Failed to load models.yaml", error=str(e))
                 self._models_config = {}
         else:
-            print(f"Warning: models.yaml not found at {models_path}")
+            logger.warning("models.yaml not found", path=str(models_path))
         
         # Load app.yaml
         if app_path.exists():
@@ -95,10 +98,10 @@ class Config:
                 with open(app_path, 'r', encoding='utf-8') as f:
                     self._app_config = yaml.safe_load(f) or {}
             except Exception as e:
-                print(f"Warning: Failed to load app.yaml: {e}")
+                logger.warning("Failed to load app.yaml", error=str(e))
                 self._app_config = {}
         else:
-            print(f"Warning: app.yaml not found at {app_path}")
+            logger.warning("app.yaml not found", path=str(app_path))
     
     def _get_from_config(self, key_path: str, default: Any = None) -> Any:
         """Get value from nested config dictionary using dot notation.
@@ -221,14 +224,14 @@ config = Config()
 
 if __name__ == "__main__":
     """Test configuration loading."""
-    print(f"Base Directory: {config.BASE_DIR}")
-    print(f"Database Path: {config.DB_PATH}")
-    print(f"FAISS Index Directory: {config.FAISS_INDEX_DIR}")
-    print(f"Google Cloud Project: {config.GOOGLE_CLOUD_PROJECT}")
-    print(f"Google Cloud Location: {config.GOOGLE_CLOUD_LOCATION}")
+    logger.info("Configuration test", base_dir=str(config.BASE_DIR))
+    logger.info("Database path", db_path=config.DB_PATH)
+    logger.info("FAISS index directory", faiss_index_dir=str(config.FAISS_INDEX_DIR))
+    logger.info("Google Cloud project", project=config.GOOGLE_CLOUD_PROJECT)
+    logger.info("Google Cloud location", location=config.GOOGLE_CLOUD_LOCATION)
     
     try:
         config.validate()
-        print("Configuration validation: PASSED")
+        logger.info("Configuration validation: PASSED")
     except ValueError as e:
-        print(f"Configuration validation: FAILED - {e}")
+        logger.error("Configuration validation: FAILED", error=str(e))

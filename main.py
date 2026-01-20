@@ -15,8 +15,10 @@ from pathlib import Path as PathLib
 # Add current directory to path for imports
 sys.path.insert(0, str(PathLib(__file__).resolve().parent))
 
-from logger import GLOBAL_LOGGER
+from logger.custom_logger import CustomLogger
 from exception.custom_exception import CustomException
+
+logger = CustomLogger().get_logger(__file__)
 from src.api.routes import router
 from utils.config import config
 
@@ -53,7 +55,7 @@ async def custom_exception_handler(request: Request, exc: CustomException):
     Returns:
         JSONResponse: JSON error response
     """
-    GLOBAL_LOGGER.error(
+    logger.error(
         "CustomException raised",
         error_message=str(exc),
         path=request.url.path,
@@ -81,7 +83,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     Returns:
         JSONResponse: JSON error response
     """
-    GLOBAL_LOGGER.warning(
+    logger.warning(
         "HTTPException raised",
         status_code=exc.status_code,
         detail=exc.detail,
@@ -109,7 +111,7 @@ async def general_exception_handler(request: Request, exc: Exception):
     Returns:
         JSONResponse: JSON error response
     """
-    GLOBAL_LOGGER.error(
+    logger.error(
         "Unhandled exception",
         error_type=type(exc).__name__,
         error_message=str(exc),
@@ -140,7 +142,7 @@ async def startup_event():
     This function is called when the FastAPI application starts.
     """
     try:
-        GLOBAL_LOGGER.info(
+        logger.info(
             "FastAPI application starting",
             app_title=app.title,
             version=app.version
@@ -149,17 +151,17 @@ async def startup_event():
         # Validate configuration
         try:
             config.validate()
-            GLOBAL_LOGGER.info("Configuration validated successfully")
+            logger.info("Configuration validated successfully")
         except ValueError as e:
-            GLOBAL_LOGGER.warning(f"Configuration validation warning: {e}")
+            logger.warning("Configuration validation warning", error=str(e))
         
         # Initialize database connection (will be created on first use)
         # The routes module handles lazy initialization
         
-        GLOBAL_LOGGER.info("FastAPI application started successfully")
+        logger.info("FastAPI application started successfully")
     
     except Exception as e:
-        GLOBAL_LOGGER.error(f"Startup error: {e}", exc_info=True)
+        logger.error("Startup error", error=str(e), exc_info=True)
         raise
 
 
@@ -170,18 +172,18 @@ async def shutdown_event():
     This function is called when the FastAPI application shuts down.
     """
     try:
-        GLOBAL_LOGGER.info("FastAPI application shutting down")
+        logger.info("FastAPI application shutting down")
         
         # Close database connections
         from src.api.routes import db_manager
         if db_manager:
             db_manager.close()
-            GLOBAL_LOGGER.info("Database connections closed")
+            logger.info("Database connections closed")
         
-        GLOBAL_LOGGER.info("FastAPI application shutdown complete")
+        logger.info("FastAPI application shutdown complete")
     
     except Exception as e:
-        GLOBAL_LOGGER.error(f"Shutdown error: {e}", exc_info=True)
+        logger.error("Shutdown error", error=str(e), exc_info=True)
 
 
 # Root endpoint
@@ -224,7 +226,7 @@ async def health_check():
             "message": "All systems operational"
         }
     except Exception as e:
-        GLOBAL_LOGGER.warning(f"Health check failed: {e}")
+        logger.warning("Health check failed", error=str(e))
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
@@ -252,7 +254,7 @@ if __name__ == "__main__":
         # Or using uv run with uvicorn
         uv run uvicorn main:app --reload
     """
-    GLOBAL_LOGGER.info("Starting FastAPI server...")
+    logger.info("Starting FastAPI server...")
     
     uvicorn.run(
         "main:app",
