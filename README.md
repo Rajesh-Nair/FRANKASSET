@@ -334,6 +334,57 @@ pytest test/test_database.py::TestDatabaseManager::test_insert_brand -v
    pytest -v
    ```
 
+## Jupyter Notebooks
+
+This project includes Jupyter notebooks in the `/notebooks` folder for interactive development and testing, including credential testing.
+
+### Installing ipykernel
+
+To use Jupyter notebooks with this project, you need to install `ipykernel`:
+
+**Using pip:**
+```bash
+pip install ipykernel
+```
+
+**Using UV:**
+```bash
+uv pip install ipykernel
+```
+
+**Or install all development dependencies (includes ipykernel):**
+```bash
+pip install -r requirements-dev.txt
+```
+
+### Registering the Kernel
+
+After installing `ipykernel`, register the project environment as a Jupyter kernel:
+
+```bash
+python -m ipykernel install --user --name=frankasset --display-name "Python (FrankAsset)"
+```
+
+This creates a kernel named `frankasset` that you can select in Jupyter Notebook, JupyterLab, or VS Code.
+
+### Using the Notebooks
+
+1. **Open the notebook** (`notebooks/test_credentials.ipynb`) in:
+   - Jupyter Notebook: `jupyter notebook`
+   - JupyterLab: `jupyter lab`
+   - VS Code: Open the `.ipynb` file directly
+
+2. **Select the kernel**: Choose "Python (FrankAsset)" from the kernel selector
+
+3. **Run the cells**: The notebook includes functions to test credentials from your `.env` file
+
+### Available Notebooks
+
+- **`notebooks/test_credentials.ipynb`**: Test environment variables and credentials from `.env` file
+  - Tests required and optional credentials
+  - Validates configuration setup
+  - Masks sensitive values for safe display
+
 ## Configuration Folder
 
 The `/config` folder contains centralized configuration files for models and application settings.
