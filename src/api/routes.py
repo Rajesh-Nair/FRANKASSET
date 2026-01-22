@@ -39,6 +39,12 @@ from src.agents.validation_agent import ValidationAgent
 from utils.helpers import sanitize_input
 from utils.config import config
 
+
+# Environment variables
+from dotenv import load_dotenv
+env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
 # Initialize router
 router = APIRouter(prefix="/api/v1", tags=["classification"])
 
@@ -47,6 +53,7 @@ db_manager: Optional[DatabaseManager] = None
 faiss_manager: Optional[FaissManager] = None
 classifier_agent: Optional[BrandClassifierAgent] = None
 validation_agent: Optional[ValidationAgent] = None
+
 
 
 def get_db_manager() -> DatabaseManager:
