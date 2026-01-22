@@ -40,11 +40,6 @@ from utils.helpers import sanitize_input
 from utils.config import config
 
 
-# Environment variables
-from dotenv import load_dotenv
-env_path = Path(__file__).resolve().parent.parent.parent / ".env"
-load_dotenv(dotenv_path=env_path)
-
 # Initialize router
 router = APIRouter(prefix="/api/v1", tags=["classification"])
 

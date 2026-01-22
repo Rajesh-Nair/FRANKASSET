@@ -25,6 +25,11 @@ logger = CustomLogger().get_logger(__file__)
 from google.adk.agents import Agent
 from google.adk.tools import google_search
 
+# Environment variables
+from dotenv import load_dotenv
+env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
 
 # Brand Classifier Agent
 class BrandClassifierAgent:
