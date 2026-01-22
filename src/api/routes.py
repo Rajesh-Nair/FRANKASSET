@@ -7,6 +7,9 @@ for processing merchant text and handling approvals/rejections.
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, status
 
+import asyncio
+from contextlib import asynccontextmanager
+
 import sys
 from pathlib import Path as PathLib
 
@@ -96,6 +99,48 @@ def get_validation_agent() -> ValidationAgent:
         validation_agent = ValidationAgent()
     return validation_agent
 
+# --- THE INFRASTRUCTURE (Orchestrator) ---
+class BatchOrchestrator:
+    def __init__(self, semaphore_count: int = 10, wait_timeout: int = 60):
+        """
+        semaphore_count: Max parallel functions allowed to run.
+        wait_timeout: Max seconds to wait in line for a 'chair'.
+        """
+        self.sem = asyncio.Semaphore(semaphore_count)
+        self.wait_timeout = wait_timeout
+
+    async def execute_safe(self, func, max_retries: int = 3, **kwargs):
+        """
+        func: The actual function object (e.g., run_developer_logic).
+        **kwargs: The arguments to pass to that function.
+        """
+        for attempt in range(max_retries):
+            try:
+                # Phase A: Wait for capacity
+                await asyncio.wait_for(self.sem.acquire(), timeout=self.wait_timeout)
+                
+                try:
+                    # Phase B: Execute the passed-in function
+                    logger.info(f"Running {func.__name__} (Attempt {attempt + 1})")
+                    result = await func(**kwargs)
+                    return {"status": "success", "result": result}
+
+                finally:
+                    # Phase C: Always release the chair
+                    self.sem.release()
+
+            except (asyncio.TimeoutError, Exception) as e:
+                if attempt < max_retries - 1:
+                    backoff = 2 ** attempt
+                    logger.warning(f"{func.__name__} failed. Retrying in {backoff}s...")
+                    await asyncio.sleep(backoff)
+                    continue
+                
+                logger.error(f"{func.__name__} failed permanently: {e}")
+                return {"status": "error", "message": str(e)}
+
+# Initialize one global bouncer for the whole app
+orchestrator = BatchOrchestrator(semaphore_count=10)
 
 @router.post("/classify", response_model=ClassifyResponse)
 async def classify_texts(request: ClassifyRequest):
@@ -157,32 +202,18 @@ async def classify_texts(request: ClassifyRequest):
         results: List[ClassifyTextResult] = []
         
         # Process each text
-        for text in texts:
-            try:
-                result = await _classify_single_text(
-                    text=text,
-                    db=db,
-                    faiss_mgr=faiss_mgr,
-                    classifier=classifier,
-                    validator=validator,
-                    categories=categories
-                )
-                results.append(result)
-            except Exception as e:
-                logger.error(
-                    "Failed to classify text",
-                    text_preview=text[:50],
-                    error=str(e),
-                    exc_info=True
-                )
-                # Create error result
-                results.append(ClassifyTextResult(
-                    text=text,
-                    found_in_db=False,
-                    brand_id=None,
-                    category_ids=[],
-                    classification=None
-                ))
+        # We pass the function name directly
+        job_list = [
+            orchestrator.execute_safe(
+                _classify_single_text, 
+                text=text, db=db, 
+                faiss_mgr=faiss_mgr, 
+                classifier=classifier, 
+                validator=validator, 
+                categories=categories) 
+            for text in texts
+        ]
+        results = await asyncio.gather(*job_list)  
         
         logger.info(
             "Classification completed",
@@ -267,9 +298,9 @@ async def _classify_single_text(
     )
     
     try:
-        # Classify using BrandClassifierAgent
-        classification = classifier.classify_merchant(text, categories)
-        
+        # Classify using BrandClassifierAgent with InMemoryRunner        
+        classification = classifier.run_InMemoryRunner(text, categories)
+
         # Check FAISS for similar brand names (fuzzy matching)
         # If similar brand found, use existing brand_id
         brand_embedding = faiss_mgr.get_embedding(classification["brand_name"])
